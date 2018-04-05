@@ -88,6 +88,10 @@ def havePool(df):
     return df
 
 def replace(df):
+    
+    for col in df.dtypes[df.dtypes=="object"].index.values:
+        df[col]
+    
     #df['GarageType'].replace(to_replace=dict(2Types=6, Attchd=5, Basment=4, BuiltIn=3, CarPort=2, Detchd=1), inplace=True)
     df['MSZoning'].replace(to_replace = dict(A=7, C=6, FV=5, I=4, RH=3, RL=2, RP=1, RM=0), inplace=True)
     df['Street'].replace(to_replace = dict(Pave=0, Grvl=1), inplace=True)
@@ -163,10 +167,9 @@ print(x_train.describe())
 ##### Entrainement (descente de gradien, affichage d'erreur)
 def entrainement():
     listEnt=[]
-    listEnt.append(linear_model.LogisticRegression().fit(x_train, y_train))
-    listEnt.append(tree.DecisionTreeClassifier().fit(x_train, y_train))
-    listEnt.append(KNeighborsClassifier().fit(x_train, y_train))
-    listEnt.append(LinearSVC().fit(x_train, y_train))
+    listEnt.append(linear_model.LinearRegression().fit(x_train, y_train))
+    listEnt.append(tree.DecisionTree...().fit(x_train, y_train))
+    listEnt.append(KNeighbors...().fit(x_train, y_train))
     
     return listEnt
 
