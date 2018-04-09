@@ -21,7 +21,7 @@ from sklearn import tree
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsRegressor
 
-#%%
+
 ##### Téléchargement des données
 train = pd.read_csv('C:\\Users\\b-auroum\\Desktop\\Work\\PROJET\\house_Prices\\data\\train.csv')
 test = pd.read_csv('C:\\Users\\b-auroum\\Desktop\\Work\\PROJET\\house_Prices\\data\\test.csv')
@@ -39,6 +39,7 @@ print(train.info())
 
 print(train.head())
 print(type(train))
+
 
 #%%
 
@@ -73,83 +74,6 @@ ax = train.GarageType.hist(bins=15, color='teal', alpha=0.8)
 ax.set(xlabel='Type de Garage', ylabel='Count')
 plt.show()
 """
-#%%
-##### Prétraitement des données et Création de nouvelle variable
-def type_category(df):
-    binaire = pd.DataFrame()
-    numerique = pd.DataFrame()
-    nominal = pd.DataFrame()
-    
-    for column in df :
-        if len(df[column].value_counts()) == 2 :
-            print("var binnaire")
-            encoder = LabelEncoder()
-            try :
-                df[column] = encoder.fit_transform(df[column].astype(str))
-                binaire.assign(column = df[column])
-                print()
-            except :
-                print('Error binnary encoding '+ encoder)
-               
-        elif (df[column].dtype == "float") or (df[column].dtype == "int64"):
-            print("var numerique")
-            numerique.assign(column = df[column])
-           
-        else : #dtype == 'category','object'
-            print("var ordinal/categorielle")
-            nominal.assign(column = df[column])
-            
-    typeCategory = [ binaire, numerique, nominal]           
-    return typeCategory
-
-
-def replace_one_hot_encoding(df):
-    columnsToEncode = df.select_dtypes(include=['category','object'])
-    # df.dtypes[train.dtypes=="object"].index.values
-    
-    for column in columnsToEncode: 
-        #s'il y a trops de category differente dans column, alors on ne traitera pas ces données exp: name_colonne
-        if len(df[column].value_counts()) > 10 : 
-            df = df.drop([column], axis=1)
-        # sinon on fait du one hot encoding dessus
-        else :
-            # Get one hot encoding on columns
-            one_hot = pd.get_dummies(df[column])
-            # Drop columns has it is now encoding
-            df = df.drop([column], axis=1)
-            # Join the encode to df
-            df = df.join(one_hot)
-            
-    return df
-
-def haveGarage(df):
-    df['haveGarage'] = df['GarageType'].isna()
-    return df
-
-
-def havePool(df):
-    df['havePool'] = df['PoolArea'].isna()
-    return df
-
-def drop_features(df):
-    na_columns=train.columns[data_train.isna().any()]
-    print(data_train[na_columns].isna().sum())
-    return df.drop(['Id'], axis=1)
-
-
-def transform_features(df):
-    df = haveGarage(df)
-    df = havePool(df)
-    #df = replace_one_hot_encoding(df)
-    #df = drop_features(df)
-    return df
-
-
-data_train = transform_features(train)
-data_test = transform_features(test)
-#data_train.head()
-
-typeCategory = type_category(train)
 
 #%%
 #### Renomage des colonnes
@@ -163,13 +87,133 @@ data_train.rename(index=str,
                       'MoSold': 'MoisVendu', 'YrSold':'AnneeVendu'})
 #print(train.columns)
 '''
-#%%
-##### feature importances
-y = data_train.SalePrice
-X = data_train.drop(['Id', 'SalePrice', 'LotFrontage', 'MasVnrArea', 'GarageYrBlt'], axis=1)
-Xtest = data_test.drop(['Id', 'LotFrontage', 'MasVnrArea', 'GarageYrBlt'], axis=1)
 
 #%%
+##### Prétraitement des données et Création de nouvelle variable
+def rename_na_by_no (df):
+    
+    #df.BsmtHalfBath = df.BsmtHalfBath.fillna(df.BsmtHalfBath.median())
+    numerique = ['LotFrontage', 'MasVnrArea', 'BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath', 'GarageYrBlt', 'GarageCars', 'GarageArea']
+    for name in numerique:
+        df[name] = np.nan_to_num(df[name])
+
+    for col in df.columns[df.isnull().any()].tolist():
+        df[col] = df[col].fillna("no"+col)
+        
+    """
+    df['Alley'] = df['Alley'].fillna('noAlleyAccess')
+    df['BsmtQual'] = df['BsmtQual'].fillna('noBasement')
+    df['BsmtCond'] = df['BsmtCond'].fillna('noBasement')
+    df['BsmtExposure'] = df['BsmtExposure'].fillna('noBasement')
+    df['BsmtFinType1'] = df['BsmtFinType1'].fillna('noBasement')
+    df['BsmtFinType2'] = df['BsmtFinType2'].fillna('noBasement')
+    df['FireplaceQu'] = df['FireplaceQu'].fillna('noFireplace')
+    #df['haveGarage'] = df['GarageType'].isna()
+    df['GarageType'] = df['GarageType'].fillna('noGarage')
+    df['GarageFinish'] = df['GarageFinish'].fillna('noGarage')
+    df['GarageQual'] = df['GarageQual'].fillna('noGarage')
+    df['GarageCond'] = df['GarageCond'].fillna('noGarage')
+    #df['havePool'] = df['PoolArea'].isna()
+    df['PoolArea'] = df['PoolArea'].fillna('noPool')
+    df['PoolQC'] = df['PoolQC'].fillna('noPool')
+    df['Fence'] = df['Fence'].fillna('noFence')
+    """
+    return df
+
+
+def colNa(df):
+    choices = ['yes', 'no', 'y', 'n', 'oui', 'non']
+    valid = False
+    while valid == False:
+        answer = input("Es tu sure d avoir traiter les colonnes avec des Na? (yes or no)" ).strip()
+        valid =  answer in choices 
+    print("Car il reste : ", df.columns[df.isnull().any()].tolist())
+
+
+#
+def type_category(df):
+    binaire = pd.DataFrame()
+    numerique = pd.DataFrame()
+    nominal = pd.DataFrame()
+    
+    for column in df :
+        if len(df[column].value_counts()) == 2 :
+            encoder = LabelEncoder()
+            try :
+                df[column] = encoder.fit_transform(df[column].astype(str))
+                binaire = pd.concat([binaire , df[column]], axis=1)
+                #print("var % binaire", column)
+                
+            except :
+                print('Error binnary encoding '+ encoder)
+                
+        elif (df[column].dtype == "float"): # or (df[column].dtype == "int"):
+            #print("var % numerique", column)
+            numerique = pd.concat([numerique , df[column]], axis=1)
+            
+        elif len(df[column].value_counts()) <= len(df[column]):
+            #print("var % nominal", column)
+            nominal = pd.concat([nominal , df[column]], axis=1)
+           
+        else : #dtype == 'category','object'
+            print("VAR NON TRAITEE !!!!!!!", column, "type ", df[column].dtype)
+            #nominal = pd.concat([nominal , df[column]], axis=1)
+            
+    typeCategory = {'Binaire': binaire, 'Numerique': numerique, 'Nominal': nominal}           
+    return typeCategory
+
+
+def one_hot_encoding(df):
+    for column in df:  
+        if df[column].dtype == 'object':
+            # Get one hot encoding on columns
+            one_hot = pd.get_dummies(df[column])
+            
+            #rename
+            for name in one_hot:
+                #print(column+"_"+name)
+                one_hot.rename(index=str, columns={name: column+"_"+name})
+            # Join the encode to df
+            pd.concat([df, one_hot], axis=1)
+            #df = df.join(one_hot)
+            # Drop columns has it is now encoding
+            df = df.drop(column, axis=1)
+            
+    return df
+
+
+def drop_features(df):
+    if 'Id' in df.columns:
+        df = df.drop(['Id'], axis=1)
+    return df
+
+
+def transform_features(df):
+    rename_na_by_no(df)
+    colNa(df)
+    #df = drop_features(df)
+    typeCategory = type_category(df)
+    df2 = one_hot_encoding(typeCategory['Nominal'])
+    return df2
+
+
+data_train = transform_features(train)
+data_test = transform_features(test)
+#data_train.head()
+
+#%%
+trainColSet = set(data_train.columns.tolist())
+testColSet = set(data_test.columns.tolist())
+dataCol = list(trainColSet and testColSet)
+
+
+y = data_train.SalePrice
+X = data_train[dataCol]
+Xtest = data_test[dataCol]
+
+
+#%%
+##### feature importances
 # Build a forest and compute the feature importances
 forest = ExtraTreesClassifier(n_estimators = 250, random_state = 0)
 forest.fit(X, y)
@@ -198,7 +242,7 @@ for id in X_select_id_col_feature_importance:
     
 X_test_less_col = Xtest[Xtest_col_feature_importance]
 
-
+#%%
 ##### Split des données Train/Test
 x_train, x_test, y_train, y_test = train_test_split(X[X_col_feature_importance], y, test_size=.3, random_state=42)
 # print(x_train.head())
@@ -222,7 +266,8 @@ print(entr)
 print("Train : ")
 for i in entr:
     print(i.score(x_train, y_train))
-    
+
+print()
 print("Test : ")
 for i in entr:
     print(i.score(x_test, y_test))
@@ -242,3 +287,4 @@ predictTest = regKNN.predict(Xtest)
 my_submission = pd.DataFrame({'Id': Xtest.Id, 'SalePrice': predictTest}) 
 #my_submission.to_csv('submissionT.csv', index = False)
 my_submission
+
