@@ -29,7 +29,7 @@ sample_submission = pd.read_csv('C:\\Users\\b-auroum\\Desktop\\Work\\PROJET\\hou
 
 #%%
 ##### Affichage des données
-"""
+
 print(train.describe())
 # on observe des données manquente parmis les donné numerique. 
 # Des colonnes ont des 0 en median alors qu'elles ont des valeurs moyennes.
@@ -73,7 +73,7 @@ plt.figure()
 ax = train.GarageType.hist(bins=15, color='teal', alpha=0.8)
 ax.set(xlabel='Type de Garage', ylabel='Count')
 plt.show()
-"""
+
 
 #%%
 #### Renomage des colonnes
@@ -95,7 +95,7 @@ def rename_na_by_no (df):
     #df.BsmtHalfBath = df.BsmtHalfBath.fillna(df.BsmtHalfBath.median())
     numerique = ['LotFrontage', 'MasVnrArea', 'BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF', 'TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath', 'GarageYrBlt', 'GarageCars', 'GarageArea']
     for name in numerique:
-        df[name] = np.nan_to_num(df[name])
+        df[name] = np.nan_to_num(df[name]) #remplace les valeurs nan en 0 et infin par val max/min
 
     for col in df.columns[df.isnull().any()].tolist():
         df[col] = df[col].fillna("no"+col)
@@ -191,7 +191,7 @@ def drop_features(df):
 def transform_features(df):
     rename_na_by_no(df)
     colNa(df)
-    #df = drop_features(df)
+    df = drop_features(df)
     typeCategory = type_category(df)
     df2 = one_hot_encoding(typeCategory['Nominal'])
     return df2
@@ -202,6 +202,7 @@ data_test = transform_features(test)
 #data_train.head()
 
 #%%
+# On s'assure que l'on a les meme colonne dans le jeux d entrainement et de test
 trainColSet = set(data_train.columns.tolist())
 testColSet = set(data_test.columns.tolist())
 dataCol = list(trainColSet and testColSet)
@@ -222,69 +223,112 @@ importances = forest.feature_importances_
 std = np.std([arbre.feature_importances_ for arbre in forest.estimators_], axis=0)
 indices = np.argsort(importances)[::-1]
 
+
 # Print the feature ranking
-print("Feature ranking:")
+#print("Feature ranking:")
 
 X_select_id_col_feature_importance = []
 for f in range(X.shape[1]):
     if importances[indices[f]] >= 0.02 :
         print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
         X_select_id_col_feature_importance.append(indices[f])
-        
-print() 
+ 
 
 #%%
+# Select only  features importance
 X_col_feature_importance = []
-Xtest_col_feature_importance = []
 for id in X_select_id_col_feature_importance:
     X_col_feature_importance.append(X.columns[id])
-    Xtest_col_feature_importance.append(X.columns[id])
     
-X_test_less_col = Xtest[Xtest_col_feature_importance]
+X_train_less_col = X[X_col_feature_importance]
+X_test_less_col = Xtest[X_col_feature_importance]
 
 #%%
 ##### Split des données Train/Test
-x_train, x_test, y_train, y_test = train_test_split(X[X_col_feature_importance], y, test_size=.3, random_state=42)
-# print(x_train.head())
-# print(x_train.describe())
+x_train, x_test, y_train, y_test = train_test_split(X_train_less_col, y, test_size=.3, random_state=42)
 
+
+#%%
+"""
+#chose the Best paramaters
+from sklearn.model_selection import GridSearchCV
+
+model = KNeighborsRegressor()
+parameters = {'n_neighbors' : [value for value in range(2, 10)]}
+grid = GridSearchCV(model, param_grid = parameters, cv = 3)
+grid.fit(x_train, y_train)
+print(grid.best_params_)
+print(grid.best_score_)
+
+
+model = tree.DecisionTreeRegressor()
+parameters = {'max_depth': [value for value in range(2, 10)] ,
+            'max_features' : [value for value in range(2, 10)]}
+grid = GridSearchCV(model, param_grid = parameters, cv = 3)
+grid.fit(x_train, y_train)
+print(grid.best_params_)
+print(grid.best_score_)
+
+model = RandomForestRegressor()
+parameters = {'n_estimators': [value for value in range(2, 10)],
+              'max_depth': [value for value in range(2, 10)], 
+              'max_features' : [value for value in range(2, 10)]}
+grid = GridSearchCV(model, param_grid = parameters, cv = 3)
+grid.fit(x_train, y_train)
+print(grid.best_params_)
+print(grid.best_score_)
+"""
 #%%
 ##### Entrainement (descente de gradien, affichage d'erreur)
 def entrainement():
-    listEnt=[]
+    listEnt = []
     listEnt.append(linear_model.LinearRegression().fit(x_train, y_train))
-    listEnt.append(tree.DecisionTreeRegressor().fit(x_train, y_train))
-    listEnt.append(KNeighborsRegressor(n_neighbors=5).fit(x_train, y_train))
-    listEnt.append(RandomForestRegressor(max_depth=2, random_state=0).fit(x_train, y_train))
+    listEnt.append(tree.DecisionTreeRegressor(max_depth=5, max_features=9).fit(x_train, y_train))
+    listEnt.append(KNeighborsRegressor(n_neighbors=6).fit(x_train, y_train))
+    listEnt.append(RandomForestRegressor(n_estimators=8 , max_features=6 , max_depth=8).fit(x_train, y_train))
+    listEnt.append(linear_model.Lasso(alpha=0.1).fit(x_train, y_train))
+    listEnt.append(linear_model.Ridge(alpha=1.0).fit(x_train, y_train))
+    #listEnt.append(PolynomialFeatures().fit(x_train, y_train))
     return listEnt
 
 entr = entrainement()
-print(entr)
+#print(entr)
 
 #%%
 ##### Verification de la performance sur le jeu de donnée test
-print("Train : ")
-for i in entr:
-    print(i.score(x_train, y_train))
+print("\n Linear Regression : ")
+print('Train score: ', entr[0].score(x_train, y_train))
+print('Test score: ', entr[0].score(x_test, y_test))
 
-print()
-print("Test : ")
-for i in entr:
-    print(i.score(x_test, y_test))
+print("\n Decision Tree : ")
+print('Train score: ', entr[1].score(x_train, y_train))
+print('Test score: ', entr[1].score(x_test, y_test))
+
+print("\n K Neighbors : ")
+print('Train score: ', entr[2].score(x_train, y_train))
+print('Test score: ', entr[2].score(x_test, y_test))
+
+print("\n Random Forest : ")
+print('Train score: ', entr[3].score(x_train, y_train))
+print('Test score: ', entr[3].score(x_test, y_test))
+
+print("\n regression lasso : ")
+print('Train score: ', entr[4].score(x_train, y_train))
+print('Test score: ', entr[4].score(x_test, y_test))
+
+print("\n regression ridge : ")
+print('Train score: ', entr[5].score(x_train, y_train))
+print('Test score: ', entr[5].score(x_test, y_test))
+
+#print("\n regression Polinomiale : ")
+#print('Train score: ', entr[6].score(x_train, y_train))
+#print('Test score: ', entr[6].score(x_test, y_test))
 
 #%%  
 #### Récuperation des données a mettre sur kaagle
-na_columns_test = X_test_less_col.columns[X_test_less_col.isna().any()]
-print(X_test_less_col[na_columns_test].isna().sum())
+predictTest = entr[3].predict(X_test_less_col)
 
-regKNN = KNeighborsRegressor(n_neighbors=5)
-regKNN.fit(x_train, y_train)
-print(x_train.columns)
-print(Xtest.columns)
-predictTest = regKNN.predict(Xtest)
-
-#%%
 my_submission = pd.DataFrame({'Id': Xtest.Id, 'SalePrice': predictTest}) 
 #my_submission.to_csv('submissionT.csv', index = False)
-my_submission
+
 
